@@ -25,7 +25,7 @@ export class TestGenerator {
     new DocCommentIncluder(),
     new FunctionBodyIncluder(),
   ];
-
+  
   constructor(
     private temperatures: number[],
     private snippetMap: SnippetMap,
@@ -60,6 +60,7 @@ export class TestGenerator {
           prompt.assemble(),
           temperature
         );
+        
         for (const completion of completions) {
           const testInfo = this.validateCompletion(
             prompt,

@@ -370,14 +370,16 @@ export function findDocComments(
 
 export function exploreAPI(pkgPath: string): API {
   performance.mark("api-exploration-start");
+  const resolvedPath = path.resolve(pkgPath);
+  console.log(`Exploring package at ${resolvedPath}`);
   const pkgName = JSON.parse(
-    fs.readFileSync(path.join(pkgPath, "package.json"), "utf8")
+    fs.readFileSync(path.join(resolvedPath, "package.json"), "utf8")
   ).name;
   const docComments: Map<string, string> = new Map();
   const revert = addHook((code, filename) =>
     findDocComments(code, docComments)
   );
-  const pkgExports = require(pkgPath);
+  const pkgExports = require(resolvedPath);
   revert();
   const api = exploreExports(pkgName, pkgExports, docComments);
   performance.measure("api-exploration", "api-exploration-start");

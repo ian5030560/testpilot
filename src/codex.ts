@@ -1,11 +1,13 @@
-import axios from "axios";
+import axios, { create } from "axios";
 import fs from "fs";
 import { performance } from "perf_hooks";
 import { ICompletionModel } from "./completionModel";
 import { trimCompletion } from "./syntax";
+import awaitQueue from "./awaitQueue";
 
 const defaultPostOptions = {
-  max_tokens: 100, // maximum number of tokens to return
+  model: "gpt-4o-mini", // model to use
+  // max_tokens: 100, // maximum number of tokens to return
   temperature: 0, // sampling temperature; higher values increase diversity
   n: 5, // number of completions to return
   top_p: 1, // no need to change this
@@ -21,9 +23,22 @@ function getEnv(name: string): string {
   return value;
 }
 
+function sleep(ms: number){
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function randomTimer(minMs: number, maxMs: number){
+  return async () => {
+    const ms = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+    return await sleep(ms);
+  };
+}
+
 export class Codex implements ICompletionModel {
   private readonly apiEndpoint: string;
   private readonly authHeaders: string;
+  private readonly queue = awaitQueue();
+  private readonly delay = randomTimer(2000, 5000);
 
   constructor(
     private readonly isStarCoder: boolean,
@@ -71,17 +86,20 @@ export class Codex implements ICompletionModel {
       ? {
           inputs: prompt,
           parameters: {
-            max_new_tokens: options.max_tokens,
+            // max_new_tokens: options.max_tokens,
             temperature: options.temperature || 0.01, // StarCoder doesn't allow 0
             n: options.n,
           },
         }
       : {
-          prompt,
+          messages: [{"role": "user","content": prompt}],
           ...options,
         };
 
-    const res = await axios.post(this.apiEndpoint, postOptions, { headers });
+    const res = await this.queue.await(async () => {
+      await this.delay();
+      return await axios.post(this.apiEndpoint, postOptions, { headers });
+    });
 
     performance.measure(
       `codex-query:${JSON.stringify({
@@ -107,11 +125,11 @@ export class Codex implements ICompletionModel {
     if (this.isStarCoder) {
       completions.add(json.generated_text);
     } else {
-      for (const choice of json.choices || [{ text: "" }]) {
+      for (const choice of json.choices || [{ message: { content: "" } }]) {
         if (choice.finish_reason === "content_filter") {
           numContentFiltered++;
         }
-        completions.add(choice.text);
+        completions.add(choice.message.content);
       }
     }
     if (numContentFiltered > 0) {

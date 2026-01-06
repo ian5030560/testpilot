@@ -18,7 +18,9 @@
     "test": "ts-mocha --forbid-only -p test/tsconfig.json test/*.ts",
     "autoformat": "prettier --write src test typings benchmark examples",
     "autoformat:check": "prettier --check src test/*.ts typings benchmark/*.ts examples/*.ts",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "start": "env-cmd node benchmark/run.js --outputDir reports --package PUT",
+    "explore_api": "node dist/exploreAPI.js PUT"
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.0",
@@ -35,6 +37,7 @@
     "prettier": "^2.7.1",
     "source-map-support": "^0.5.21",
     "ts-mocha": "^10.0.0",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^4.9.3"
   },
   "dependencies": {
@@ -43,6 +46,7 @@
     "common-js-file-extensions": "^1.0.4",
     "console-stamp": "^3.1.0",
     "dedent": "^0.7.0",
+    "env-cmd": "^11.0.0",
     "espree": "^9.3.2",
     "estraverse": "^5.3.0",
     "fast-glob": "^3.2.12",

@@ -18,6 +18,7 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { PerformanceMeasurer } from "./performanceMeasurer";
 import { TestResultCollector } from "./testResultCollector";
+
 require("console-stamp")(console);
 
 /**
@@ -50,7 +51,7 @@ export async function runExperiment(
 
   // initialize the workList with all functions
   let workList = functions.map((f) => ({ fun: f, nrTimesExtended: 0 }));
-
+  
   while (workList.length > 0) {
     if (performance.now() > deadline) {
       console.log(
