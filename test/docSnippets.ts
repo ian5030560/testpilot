@@ -9,7 +9,7 @@ chai.use(deepEqualInAnyOrder);
 describe("unit test findFencedCodeBlocks", () => {
   it("should not detect snippets in non-covered language fencing", () => {
     const extractedSnippets = docSnippetMiner.findFencedCodeBlocks(
-      `${__dirname}/input/coffee-fencing.md`
+      `${__dirname}/input/non-lang-fencing.md`
     );
     expect(extractedSnippets.size).equal(0);
   });
@@ -24,7 +24,7 @@ describe("unit test findFencedCodeBlocks", () => {
         "```",
     ];
     const extractedSnippets = docSnippetMiner.findFencedCodeBlocks(
-      `${__dirname}/input/non-lang-fencing.md`
+      `${__dirname}/input/coffee-fencing.md`
     );
     expect(new Set(expectedSnippets)).to.deep.equal(extractedSnippets);
   });

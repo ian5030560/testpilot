@@ -6,8 +6,7 @@ import { trimCompletion } from "./syntax";
 import awaitQueue from "./awaitQueue";
 
 const defaultPostOptions = {
-  model: "gpt-4o-mini", // model to use
-  // max_tokens: 100, // maximum number of tokens to return
+  max_tokens: 100, // maximum number of tokens to return
   temperature: 0, // sampling temperature; higher values increase diversity
   n: 5, // number of completions to return
   top_p: 1, // no need to change this
@@ -23,11 +22,11 @@ function getEnv(name: string): string {
   return value;
 }
 
-function sleep(ms: number){
+function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function randomTimer(minMs: number, maxMs: number){
+function randomTimer(minMs: number, maxMs: number) {
   return async () => {
     const ms = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
     return await sleep(ms);
@@ -38,7 +37,7 @@ export class Codex implements ICompletionModel {
   private readonly apiEndpoint: string;
   private readonly authHeaders: string;
   private readonly queue = awaitQueue();
-  private readonly delay = randomTimer(2000, 5000);
+  private readonly delay = randomTimer(5000, 10000);
 
   constructor(
     private readonly isStarCoder: boolean,
@@ -51,8 +50,7 @@ export class Codex implements ICompletionModel {
       ? "{}"
       : getEnv("TESTPILOT_LLM_AUTH_HEADERS");
     console.log(
-      `Using ${this.isStarCoder ? "StarCoder" : "GPT"} API at ${
-        this.apiEndpoint
+      `Using ${this.isStarCoder ? "StarCoder" : "GPT"} API at ${this.apiEndpoint
       }`
     );
   }
@@ -73,6 +71,7 @@ export class Codex implements ICompletionModel {
       ...JSON.parse(this.authHeaders),
     };
     const options = {
+      model: !this.isStarCoder ? "gpt-oss-20b" : "starcoder",
       ...defaultPostOptions,
       // options provided to constructor override default options
       ...this.instanceOptions,
@@ -80,21 +79,13 @@ export class Codex implements ICompletionModel {
       ...requestPostOptions,
     };
 
+    if (this.isStarCoder && options.temperature == 0) {
+      options.temperature = 0.01;
+    }
+
     performance.mark("codex-query-start");
 
-    const postOptions = this.isStarCoder
-      ? {
-          inputs: prompt,
-          parameters: {
-            // max_new_tokens: options.max_tokens,
-            temperature: options.temperature || 0.01, // StarCoder doesn't allow 0
-            n: options.n,
-          },
-        }
-      : {
-          messages: [{"role": "user","content": prompt}],
-          ...options,
-        };
+    const postOptions = { prompt, ...options };
 
     const res = await this.queue.await(async () => {
       await this.delay();
@@ -122,15 +113,11 @@ export class Codex implements ICompletionModel {
     }
     let numContentFiltered = 0;
     const completions = new Set<string>();
-    if (this.isStarCoder) {
-      completions.add(json.generated_text);
-    } else {
-      for (const choice of json.choices || [{ message: { content: "" } }]) {
-        if (choice.finish_reason === "content_filter") {
-          numContentFiltered++;
-        }
-        completions.add(choice.message.content);
+    for (const choice of json.choices || [{ text: "" }]) {
+      if (choice.finish_reason === "content_filter") {
+        numContentFiltered++;
       }
+      completions.add(choice.text);
     }
     if (numContentFiltered > 0) {
       console.warn(
@@ -152,7 +139,9 @@ export class Codex implements ICompletionModel {
     try {
       let result = new Set<string>();
       for (const completion of await this.query(prompt, { temperature })) {
-        result.add(trimCompletion(completion));
+        const trimed = trimCompletion(completion);
+        // console.log(`Completion:\n${trimed}\n---`);
+        result.add(trimed);
       }
       return result;
     } catch (err: any) {

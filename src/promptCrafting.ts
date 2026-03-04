@@ -109,7 +109,6 @@ export class Prompt {
       this.docComment = "";
     }
   }
-
   /**
    * Assemble the usage snippets into a single string.
    */
@@ -153,14 +152,14 @@ export class Prompt {
   ): string | undefined {
     let fixed = closeBrackets(
       this.imports +
-        (stubOutHeaders
-          ? // stub out suite header and test header so we don't double-count identical tests
-            "describe('test suite', function() {\n" +
-            "    it('test case', function(done) {\n"
-          : this.suiteHeader + this.testHeader) +
-        // add the body, making sure the first line is indented correctly
-        body.replace(/^(?=\S)/, " ".repeat(8)) +
-        "\n"
+      (stubOutHeaders
+        ? // stub out suite header and test header so we don't double-count identical tests
+        "describe('test suite', function() {\n" +
+        "    it('test case', function(done) {\n"
+        : this.suiteHeader + this.testHeader) +
+      // add the body, making sure the first line is indented correctly
+      body.replace(/^(?=\S)/, " ".repeat(8)) +
+      "\n"
     );
     // beautify closing brackets
     return fixed?.source.replace(/\}\)\}\)$/, "    })\n})");

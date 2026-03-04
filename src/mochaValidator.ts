@@ -7,6 +7,7 @@ import { TestValidator } from "./testValidator";
 import { ITestFailureInfo, TestOutcome } from "./report";
 import { ICoverageSummary, emptyCoverageSummary } from "./coverage";
 import { performance } from "perf_hooks";
+import assert from "assert";
 
 /**
  * A bare-bones type definition for a Mocha test result, only modelling the
@@ -76,31 +77,34 @@ export class MochaValidator extends TestValidator {
     const coverageReport = path.join(coverageDir, "coverage-final.json");
     // test report, produced by mocha
     const reportFile = path.join(tmpDir, "report.json");
-
+    
     performance.mark(`start:${testName}`);
     const res = spawnSync(
-      path.join(__dirname, "..", "node_modules", ".bin", "nyc"),
+      "npx",
       [
-        `--cwd=${packagePath}`,
-        `--exclude=${path.basename(this.testDir)}`,
+        "nyc",
+        `--cwd="${packagePath}"`,
+        `--exclude="${path.basename(this.testDir)}"`,
         "--reporter=json",
-        `--report-dir=${coverageDir}`,
-        `--temp-dir=${coverageDir}`,
-        path.join(__dirname, "..", "node_modules", ".bin", "mocha"),
+        `--report-dir="${coverageDir}"`,
+        `--temp-dir="${coverageDir}"`,
+        "mocha",
         "--full-trace",
         "--exit",
         "--allow-uncaught=false",
         "--reporter=json",
-        "--reporter-option",
-        `output=${reportFile}`,
-        "--",
+        "--reporter-options", 
+        `output="${reportFile}"`,
         testFile,
       ],
       {
         timeout: 5000,
         killSignal: "SIGKILL",
+        stdio: "pipe",
+        shell: true,
       }
     );
+    
     performance.measure(`duration:${testName}`, `start:${testName}`);
     const stderr = res.stderr.toString();
     const report = MochaValidator.tryParseReport(reportFile);
@@ -156,8 +160,8 @@ export class MochaValidator extends TestValidator {
     }
 
     // no need to keep coverage data for invalid tests
-    if (outcome.status != "PASSED") {
-      fs.rmdirSync(coverageDir, { recursive: true });
+    if (outcome.status != "PASSED" && fs.existsSync(coverageDir)) {
+      fs.rmSync(coverageDir, { recursive: true });
     }
     return outcome;
   }
@@ -181,7 +185,7 @@ export class MochaValidator extends TestValidator {
       // create/clean .nyc_output directory
       const nycOutput = path.join(this.packagePath, ".nyc_output");
       if (fs.existsSync(nycOutput)) {
-        fs.rmdirSync(nycOutput, { recursive: true });
+        fs.rmSync(nycOutput, { recursive: true });
       }
       fs.mkdirSync(nycOutput);
 
@@ -189,18 +193,20 @@ export class MochaValidator extends TestValidator {
       for (const coverageDir of this.coverageDirs) {
         MochaValidator.copyCoverageData(coverageDir, nycOutput);
       }
-
+      
       // create nyc report
       child_process.spawnSync(
-        path.join(__dirname, "..", "node_modules", ".bin", "nyc"),
+        "npx",
         [
-          `--report-dir=${path.join(testDir, "coverage")}`,
+          "nyc",
+          `--report-dir="${path.resolve(testDir, "coverage")}"`,
           "--reporter=json-summary",
           "report",
         ],
         {
           cwd: this.packagePath,
-          stdio: "inherit",
+          stdio: "pipe",
+          shell: true,
         }
       );
 
@@ -217,7 +223,7 @@ export class MochaValidator extends TestValidator {
         );
       }
     } finally {
-      fs.rmdirSync(testDir, { recursive: true });
+      fs.rmSync(testDir, { recursive: true });
     }
   }
 
@@ -234,7 +240,7 @@ export class MochaValidator extends TestValidator {
 
   public cleanup(): void {
     for (const coverageDir of this.coverageDirs) {
-      fs.rmdirSync(coverageDir, { recursive: true });
+      fs.rmSync(coverageDir, { recursive: true });
     }
   }
 }
